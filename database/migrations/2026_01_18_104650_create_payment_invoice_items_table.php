@@ -15,16 +15,14 @@ class CreatePaymentInvoiceItemsTable extends Migration
     {
         Schema::create('payment_invoice_items', function (Blueprint $table) {
             $table->id();
-
             $table->foreignId('payment_id')->constrained()->cascadeOnDelete();
             $table->foreignId('payment_invoice_id')->constrained()->cascadeOnDelete();
             $table->foreignId('invoice_item_id')->constrained()->cascadeOnDelete();
-
             $table->decimal('allocated_amount', 10, 2);
-
             $table->json('props')->nullable();
-
             $table->timestamps();
+
+            $table->unique(['payment_id', 'invoice_item_id']); // avoid duplicate allocation
         });
     }
 

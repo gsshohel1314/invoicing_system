@@ -4,7 +4,7 @@ use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
 
-class CreateVtsTable extends Migration
+class CreateVtsAccountsTable extends Migration
 {
     /**
      * Run the migrations.
@@ -13,10 +13,11 @@ class CreateVtsTable extends Migration
      */
     public function up()
     {
-        Schema::create('vts', function (Blueprint $table) {
+        Schema::create('vts_accounts', function (Blueprint $table) {
             $table->id();
-            $table->date('activation_date')->nullable();
-            $table->string('imei')->unique()->nullable();
+            $table->string('name');
+            $table->enum('customer_type', ['retail', 'corporate']);
+            $table->enum('status', ['active', 'inactive'])->default('active');
             $table->timestamps();
         });
     }
@@ -28,6 +29,6 @@ class CreateVtsTable extends Migration
      */
     public function down()
     {
-        Schema::dropIfExists('vts');
+        Schema::dropIfExists('vts_accounts');
     }
 }

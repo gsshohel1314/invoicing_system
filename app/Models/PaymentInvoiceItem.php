@@ -8,4 +8,21 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentInvoiceItem extends Model
 {
     use HasFactory;
+
+    protected $table = 'payment_invoice_items';
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class);
+    }
+
+    public function paymentInvoice()
+    {
+        return $this->belongsTo(PaymentInvoice::class);
+    }
+
+    public function invoiceItem()
+    {
+        return $this->belongsTo(InvoiceItem::class, 'invoice_item_id');
+    }
 }

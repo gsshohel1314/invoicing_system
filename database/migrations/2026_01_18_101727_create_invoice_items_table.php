@@ -15,28 +15,18 @@ class CreateInvoiceItemsTable extends Migration
     {
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->id();
-
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
             // $table->foreignId('subscription_id')->constrained()->restrictOnDelete();
-            $table->integer('subscription_id');
-            // $table->foreignId('vts_id')->constrained()->restrictOnDelete();
-            $table->integer('vts_id');
-
-            $table->date('cycle_start');
-            $table->date('cycle_end');
-
+            $table->foreignId('vts_id')->constrained()->cascadeOnDelete();
+            $table->date('period_start');
+            $table->date('period_end');
             $table->boolean('is_prorated')->default(false);
-            $table->integer('prorated_days')->nullable();
-
-            $table->integer('quantity')->nullable()->default(0);
+            $table->decimal('quantity', 10, 4)->default(1.0000); // Quantity in months (1.0000 = 1 month, 0.5000 = 15 days etc)
             $table->decimal('unit_price', 10, 2);
             $table->decimal('discount_amount', 10, 2)->default(0);
             $table->decimal('amount', 10, 2);
-
             $table->string('description')->nullable();
-
             $table->json('props')->nullable();
-
             $table->timestamps();
         });
     }

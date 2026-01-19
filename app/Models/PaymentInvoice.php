@@ -8,4 +8,16 @@ use Illuminate\Database\Eloquent\Model;
 class PaymentInvoice extends Model
 {
     use HasFactory;
+
+    protected $table = 'payment_invoices';
+
+    public function payment()
+    {
+        return $this->belongsTo(Payment::class);
+    }
+
+    public function invoice()
+    {
+        return $this->belongsTo(Invoice::class);
+    }
 }
