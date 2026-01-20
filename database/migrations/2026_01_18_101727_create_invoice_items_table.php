@@ -16,8 +16,7 @@ class CreateInvoiceItemsTable extends Migration
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
-            // $table->foreignId('subscription_id')->constrained()->restrictOnDelete();
-            $table->foreignId('vts_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('vts_id')->constrained('vts')->cascadeOnDelete();
             $table->date('period_start');
             $table->date('period_end');
             $table->boolean('is_prorated')->default(false);

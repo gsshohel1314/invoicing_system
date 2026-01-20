@@ -22,7 +22,6 @@ class CreatePaymentsTable extends Migration
             $table->string('reference')->nullable()->comment('Txn ID or Reference Number');
             $table->enum('status', ['pending','success','failed'])->default('pending');
             $table->text('notes')->nullable();
-            // $table->timestamp('paid_at')->nullable();
             $table->json('props')->nullable();
             $table->timestamps();
         });
