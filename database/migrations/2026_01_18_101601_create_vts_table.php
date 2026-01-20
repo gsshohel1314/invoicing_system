@@ -15,6 +15,7 @@ class CreateVtsTable extends Migration
     {
         Schema::create('vts', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('vts_account_id')->constrained('vts_accounts')->cascadeOnDelete();
             $table->date('activation_date')->nullable();
             $table->string('imei')->unique()->nullable();
             $table->timestamps();

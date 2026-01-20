@@ -19,6 +19,8 @@ class CreateOffersTable extends Migration
             $table->text('description')->nullable();
             $table->date('valid_from');
             $table->date('valid_to')->nullable();
+            $table->string('offer_type');
+            $table->decimal('offer_value', 10, 2);
             $table->timestamps();
         });
     }

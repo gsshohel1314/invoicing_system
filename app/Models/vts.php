@@ -5,9 +5,13 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class vts extends Model
+class Vts extends Model
 {
     use HasFactory;
+
+    protected $casts = [
+        'activation_date' => 'date',
+    ];
 
     // A device belongs to an account.
     public function account()
@@ -37,5 +41,18 @@ class vts extends Model
     public function offers()
     {
         return $this->hasMany(VtsOffer::class, 'vts_id');
+    }
+
+    // Get active offers for this VTS
+    public function getActiveOffersAttribute()
+    {
+        return $this->offers()
+                    ->where('status', 'active')
+                    ->where('applied_from', '<=', now())
+                    ->where(function ($query) {
+                        $query->whereNull('applied_to')
+                            ->orWhere('applied_to', '>=', now());
+                    })
+                    ->get();
     }
 }

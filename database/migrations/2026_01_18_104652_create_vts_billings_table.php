@@ -17,12 +17,11 @@ class CreateVtsBillingsTable extends Migration
             $table->id();
             $table->foreignId('vts_id')->constrained()->cascadeOnDelete()->unique();
 
-            $table->enum('bill_type', ['prepaid', 'postpaid']);
             $table->decimal('monthly_fee', 10, 2);
             $table->decimal('actual_monthly_fee', 10, 2)->nullable();
             
-            $table->date('billing_start_date')->nullable();
-            $table->date('billing_end_date')->nullable();
+            $table->date('service_start_date')->nullable();
+            $table->date('service_expiry_date')->nullable();
             $table->date('next_billing_date')->nullable();
 
             $table->decimal('current_balance', 10, 2)->default(0);
