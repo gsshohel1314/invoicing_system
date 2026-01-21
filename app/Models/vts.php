@@ -9,6 +9,8 @@ class Vts extends Model
 {
     use HasFactory;
 
+    protected $guarded = ['id'];
+
     protected $casts = [
         'activation_date' => 'date',
     ];
@@ -20,7 +22,7 @@ class Vts extends Model
     }
 
     // An vts will have one billing record
-    public function vtsBilling()
+    public function billing()
     {
         return $this->hasOne(VtsBilling::class, 'vts_id');
     }
@@ -29,12 +31,6 @@ class Vts extends Model
     public function invoiceItems()
     {
         return $this->hasMany(InvoiceItem::class, 'vts_id');
-    }
-
-    // An vts will have one billing record
-    public function billing()
-    {
-        return $this->hasOne(VtsBilling::class, 'vts_id');
     }
 
     // An vts can have many offers applied

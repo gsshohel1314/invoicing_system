@@ -11,6 +11,8 @@ class VtsBilling extends Model
 
     protected $table = 'vts_billings';
 
+    protected $guarded = ['id'];
+
     // The VTS billing belongs to a VTS device.
     public function vts()
     {

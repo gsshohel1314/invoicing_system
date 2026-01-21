@@ -18,13 +18,14 @@ class CreateCustomerBillingsTable extends Migration
             $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete()->unique();
 
             $table->enum('bill_type', ['prepaid', 'postpaid']);
-            $table->unsignedTinyInteger('billing_day')->nullable();
+            $table->unsignedTinyInteger('invoice_generation_day')->nullable()->default(1);
+            $table->enum('billing_mode', ['calendar', 'activation'])->default('calendar');
 
             $table->decimal('current_balance', 10, 2)->default(0);
             $table->foreignId('last_invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->date('last_pay_date')->nullable();
 
-            $table->enum('status', ['active','suspended','cancelled'])->default('active');
+            $table->enum('status', ['active','inactive'])->default('active');
             $table->timestamps();
         });
     }

@@ -10,6 +10,8 @@ class VtsAccount extends Model
 {
     use HasFactory;
 
+    protected $guarded = ['id'];
+
     // An account will have many devices.
     public function vts()
     {
@@ -17,7 +19,7 @@ class VtsAccount extends Model
     }
 
     // An account has one customer billing record.
-    public function customerBilling()
+    public function billing()
     {
         return $this->hasOne(CustomerBilling::class, 'vts_account_id');
     }

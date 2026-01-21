@@ -11,6 +11,8 @@ class Offer extends Model
 
     protected $table = 'offers';
 
+    protected $guarded = ['id'];
+
     // An offer will have many vts offers.
     public function vtsOffers()
     {

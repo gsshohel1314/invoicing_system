@@ -18,6 +18,7 @@ class CreateVtsTable extends Migration
             $table->foreignId('vts_account_id')->constrained('vts_accounts')->cascadeOnDelete();
             $table->date('activation_date')->nullable();
             $table->string('imei')->unique()->nullable();
+            $table->string('service_status')->default('active');
             $table->timestamps();
         });
     }

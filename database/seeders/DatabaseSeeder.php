@@ -20,235 +20,187 @@ use Illuminate\Support\Collection;
 
 class DatabaseSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        $faker = Faker::create();
+        $faker = Faker::create('bn_BD');
 
-        // Create some customers (vts_accounts)
-        $company = [
-            ['name' => 'Rahim Enterprise', 'customer_type' => 'retail', 'status' => 'active'],
-            ['name' => 'Karim Motors', 'customer_type' => 'corporate', 'status' => 'active'],
-            ['name' => 'Siddique Traders', 'customer_type' => 'retail', 'status' => 'active'],
-            ['name' => 'Bismillah Logistics', 'customer_type' => 'corporate', 'status' => 'active'],
-            ['name' => 'New Customer Test', 'customer_type' => 'retail', 'status' => 'active'],
+        // Create Vts Account
+        $accountsData = [
+            ['name' => 'রহিম এন্টারপ্রাইজ', 'customer_type' => 'retail'],
+            ['name' => 'করিম মোটরস', 'customer_type' => 'corporate'],
+            ['name' => 'সিদ্দিক ট্রেডার্স', 'customer_type' => 'retail'],
+            // ['name' => 'বিসমিল্লাহ লজিস্টিকস', 'customer_type' => 'corporate'],
+            // ['name' => 'নতুন কাস্টমার টেস্ট', 'customer_type' => 'retail'],
         ];
 
         $accounts = new Collection();
-        foreach ($company as $data) {
-            $accounts->push(VtsAccount::create($data));
+        foreach ($accountsData as $data) {
+            $accounts->push(VtsAccount::create([
+                'name'          => $data['name'],
+                'customer_type' => $data['customer_type'],
+                'status'        => 'active',
+            ]));
         }
 
-        // Each account will have billing and 2-3 devices with billing
+        // Create customer billing + Vts + Vts billing
         $accounts->each(function ($account) use ($faker) {
             // Customer Billing config
             CustomerBilling::create([
-                'vts_account_id' => $account->id,
-                'bill_type' => $faker->randomElement(['prepaid', 'postpaid']),
-                'billing_day' => $faker->numberBetween(1, 28),
-                'current_balance' => 0,
-                'last_invoice_id' => null,
-                'last_pay_date' => null,
-                'status' => 'active',
+                'vts_account_id'         => $account->id,
+                // 'bill_type'              => $faker->randomElement(['prepaid', 'postpaid']),
+                'bill_type'              => 'prepaid',
+                'invoice_generation_day' => 3,
+                'billing_mode'           => 'calendar',
+                'status'                 => 'active',
             ]);
 
-            // Create 2–3 Vts devices per account
-            $deviceCount = rand(2, 3);
+            // Create 2 vts for every vts account
+            $deviceCount = 2;
             for ($i = 0; $i < $deviceCount; $i++) {
-                $activation = Carbon::now()->subMonths(rand(1, 6));
+                $activation = Carbon::now()->subMonths($faker->numberBetween(1, 12));
 
+                // Create vts
                 $vts = Vts::create([
-                    'vts_account_id' => $account->id,
+                    'vts_account_id'  => $account->id,
                     'activation_date' => $activation,
-                    'imei' => '35' . rand(1000000000000, 9999999999999),
+                    'imei'            => '35' . $faker->unique()->numerify('#############'),
                 ]);
 
-                // Device Billing config
+                // Vts Billing config
                 VtsBilling::create([
-                    'vts_id' => $vts->id,
-                    'monthly_fee' => 350.00,
-                    'actual_monthly_fee' => $faker->randomFloat(2, 300, 350),
-                    'service_start_date' => $vts->activation_date,
+                    'vts_id'              => $vts->id,
+                    'monthly_fee'         => 350.00,
+                    'actual_monthly_fee'  => round($faker->randomFloat(2, 300, 350)),
+                    'service_start_date'  => $vts->activation_date,
                     'service_expiry_date' => null,
-                    'next_billing_date' => $vts->activation_date->copy()->addMonths(1),
-                    'current_balance' => 0,
-                    'last_invoice_id' => null,
-                    'last_pay_date' => null,
-                    'status' => 'active',
+                    'next_billing_date'   => $vts->activation_date->copy()->addMonths(1),
+                    'status'              => 'active',
                 ]);
             }
         });
 
-        // Create some offers
-        $offersData = [
-            [
-                'title'       => 'New Device First Month Free',
-                'valid_from'  => Carbon::now()->subDays(30),
-                'valid_to'    => Carbon::now()->addMonths(3),
-                'offer_type'  => 'free_month',
-                'offer_value' => 0.00,
-            ],
-            [
-                'title'       => 'Winter Special 10% Discount',
-                'valid_from'  => Carbon::now()->subMonth(),
-                'valid_to'    => Carbon::parse('2026-03-31'),
-                'offer_type'  => 'percent',
-                'offer_value' => 10.00,
-            ],
-            [
-                'title'       => 'Referral Bonus 500 TK',
-                'valid_from'  => Carbon::now(),
-                'valid_to'    => null,
-                'offer_type'  => 'fixed',
-                'offer_value' => 500.00,
-            ],
-        ];
+        // Create offer
+        // $offers = collect([
+        //     Offer::create([
+        //         'title'       => 'নতুন ডিভাইস প্রথম মাস ফ্রি',
+        //         'description' => 'প্রথম মাসের বিল সম্পূর্ণ ফ্রি',
+        //         'valid_from'  => Carbon::now()->subDays(30),
+        //         'valid_to'    => Carbon::now()->addMonths(3),
+        //         'offer_type'  => 'free_month',
+        //         'offer_value' => 0.00,
+        //     ]),
+        //     Offer::create([
+        //         'title'       => 'শীতকালীন অফার ১৫% ছাড়',
+        //         'description' => 'ডিসেম্বর থেকে ফেব্রুয়ারি পর্যন্ত',
+        //         'valid_from'  => Carbon::now()->subMonth(),
+        //         'valid_to'    => Carbon::parse('2026-03-31'),
+        //         'offer_type'  => 'percent',
+        //         'offer_value' => 15.00,
+        //     ]),
+        //     Offer::create([
+        //         'title'       => 'রেফারেল বোনাস',
+        //         'description' => 'প্রতি সফল রেফারেলে ৫০০ টাকা',
+        //         'valid_from'  => Carbon::now(),
+        //         'valid_to'    => null,
+        //         'offer_type'  => 'fixed',
+        //         'offer_value' => 500.00,
+        //     ]),
+        // ]);
 
-        $offers = collect();
-        foreach ($offersData as $data) {
-            $offers->push(Offer::create($data));
-        }
+        // Apply offer in random device
+        // $allDevices = Vts::all();
+        // foreach ($offers as $offer) {
+        //     $randomDevices = $allDevices->random(min(3, $allDevices->count()));
+        //     foreach ($randomDevices as $device) {
+        //         VtsOffer::create([
+        //             'vts_id'       => $device->id,
+        //             'offer_id'     => $offer->id,
+        //             'applied_from' => Carbon::now()->subDays(rand(0, 60)),
+        //             'applied_to'   => $offer->valid_to,
+        //             'status'       => 'active',
+        //         ]);
+        //     }
+        // }
 
-        // Offer apply to random devices
-        $allDevices = Vts::all();
-        foreach ($offers as $offer) {
-            $randomDevices = $allDevices->random(rand(2, 3));
-            foreach ($randomDevices as $device) {
-                VtsOffer::create([
-                    'vts_id' => $device->id,
-                    'offer_id' => $offer->id,
-                    'applied_from' => now()->subDays(rand(0, 15)),
-                    'applied_to' => $offer->valid_to ? $offer->valid_to : null,
-                    'status' => 'active',
-                ]);
-            }
-        }
+        // Only 1 invoice per month for each customer.
+        // $accounts->each(function ($account) use ($faker) {
+        //     $devices = $account->vts;
 
-        // Generate Invoices and Invoice Items
-        $accounts->each(function ($account) {
-            $vts = $account->vts;
+        //     // Select a month (recent month)
+        //     $issueDate = Carbon::now()->subMonths(rand(0, 3))->startOfMonth()->addDays(rand(1, 15));
+        //     $billingMonth = $issueDate->format('Y-m');
+        //     $periodStart = $issueDate->copy()->startOfMonth();
+        //     $periodEnd = $issueDate->copy()->endOfMonth();
 
-            for ($i = 0; $i < rand(1, 3); $i++) {
-                // $issueDate = Carbon::now()->subDays(rand(5, 90));
-                $invoice = Invoice::create([
-                    'vts_account_id' => $account->id,
-                    'invoice_number' => "INV-" . rand(100000, 999999),
-                    'issued_date' => null,
-                    'due_date' => null,
-                    'subtotal' => 0,
-                    'discount_amount' => 0,
-                    'total_amount' => 0,
-                    'status' => 'draft',
-                    'is_consolidated' => $vts->count() > 1,
-                ]);
+        //     // Check: Is there an invoice for this month?
+        //     if ($account->invoices()->where('billing_month', $billingMonth)->exists()) {
+        //         return; // Already have → Skip
+        //     }
 
-                $subtotal = 0;
-                $totalDiscount = 0;
+        //     $statusOptions = ['draft', 'unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'];
+        //     $status = $faker->randomElement($statusOptions);
 
-                $selectedDevices = $vts->random(min(3, $vts->count()));
-                foreach ($selectedDevices as $device) {
-                    $periodStart = $device->activation_date->copy()->addMonths($i);
-                    $periodEnd = $periodStart->copy()->addDays(29);
-                    // $quantity = rand(80, 100) / 100; // 0.8 to 1.0
-                    $quantity = 1; // full month
-                    $unitPrice = $device->vtsBilling->actual_monthly_fee;
-                    $baseAmount = $unitPrice * $quantity;
-                    
-                    // Apply active offers starts
-                    $discountAmount = 0;
-                    $activeOffers = $device->active_offers;
+        //     $invoice = Invoice::create([
+        //         'vts_account_id'       => $account->id,
+        //         'invoice_number'       => 'INV-' . $issueDate->format('Ym') . '-' . str_pad(rand(100, 999), 3, '0', STR_PAD_LEFT),
+        //         'billing_month'        => $billingMonth,
+        //         'billing_period_start' => $periodStart,
+        //         'billing_period_end'   => $periodEnd,
+        //         'issued_date'          => $issueDate,
+        //         'due_date'             => $issueDate->copy()->addDays(7),
+        //         'subtotal'             => 0,
+        //         'discount_amount'      => 0,
+        //         'total_amount'         => 0,
+        //         'paid_amount'          => 0,
+        //         'status'               => $status,
+        //         'is_consolidated'      => $devices->count() > 1,
+        //         'is_advance_billed'    => $faker->boolean(30),
+        //         'sent_at'              => $faker->boolean(70) ? $issueDate->copy()->addHours(rand(1, 48)) : null,
+        //         'reminder_sent_count'  => rand(0, 4),
+        //         'generated_by'         => $faker->randomElement(['cron', 'manual']),
+        //     ]);
 
-                    foreach ($activeOffers as $vtsOffer) {
-                        $offer = $vtsOffer->offer;
-                        if ($offer->offer_type === 'free_month') {
-                            $discountAmount = $baseAmount; // full free
-                        } elseif ($offer->offer_type === 'percent') {
-                            $discountAmount = $baseAmount * ($offer->offer_value / 100);
-                        } elseif ($offer->offer_type === 'fixed') {
-                            $discountAmount = $offer->offer_value;
-                        }
-                    }
+        //     $subtotal = 0;
+        //     $discountTotal = 0;
 
-                    $finalAmount = $baseAmount - $discountAmount;
-                    $totalDiscount += $discountAmount;
-                    // Apply active offers ends
+        //     // $this->command->info('Device count: ' . $devices->count());
+        //     foreach ($devices as $device) {
+        //         $monthlyFee = $device->billing->actual_monthly_fee ?? 350.00;
+        //         $quantity = 1.0000; // NO prorated — full month
+        //         $baseAmount = $monthlyFee * $quantity;
+        //         $discount = $faker->randomFloat(2, 0, $baseAmount * 0.25);
 
-                    InvoiceItem::create([
-                        'invoice_id' => $invoice->id,
-                        'vts_id' => $device->id,
-                        'period_start' => $periodStart,
-                        'period_end' => $periodEnd,
-                        'is_prorated' => $quantity != 1,
-                        'quantity' => $quantity,
-                        'unit_price' => $unitPrice,
-                        'discount_amount' => $discountAmount,
-                        'amount' => $finalAmount,
-                        'description' => "GPS Tracking - Device {$device->id}",
-                    ]);
+        //         $amount = $baseAmount - $discount;
 
-                    $subtotal += $baseAmount; // subtotal base amount
-                }
+        //         InvoiceItem::create([
+        //             'invoice_id'      => $invoice->id,
+        //             'vts_id'          => $device->id,
+        //             'period_start'    => $periodStart,
+        //             'period_end'      => $periodEnd,
+        //             'is_prorated'     => false,
+        //             'quantity'        => 1.0000,
+        //             'unit_price'      => $monthlyFee,
+        //             'discount_amount' => round($discount, 2),
+        //             'amount'          => round($amount, 2),
+        //         ]);
 
-                $invoice->update([
-                    'subtotal' => $subtotal,
-                    'discount_amount' => $totalDiscount,
-                    'total_amount' => $subtotal - $totalDiscount,
-                ]);
+        //         $subtotal += $baseAmount;
+        //         $discountTotal += $discount;
+        //     }
 
-                // Simulate issue (70% of cases)
-                if (rand(1, 10) <= 7) {
-                    $invoice->issue(); // Here issued_date and due_date will be set.
-                }
-            }
-        });
+        //     $invoice->update([
+        //         'subtotal'      => round($subtotal, 2),
+        //         'discount_amount' => round($discountTotal, 2),
+        //         'total_amount'  => round($subtotal - $discountTotal, 2),
+        //         // 'paid_amount'   => $status === 'paid' ? $invoice->total_amount : ($status === 'partially_paid' ? round($invoice->total_amount * 0.6, 2) : 0),
+        //     ]);
+        // });
 
-        // Payment + Allocation + Ledger
-        $accounts->each(function ($account) use ($faker) {
-            $invoices = $account->invoices;
-
-            foreach ($invoices as $invoice) {
-                if ($invoice->issued_date !== null) {
-                    $remainingDue = $invoice->total_amount - $invoice->paid_amount;
-                    if ($remainingDue > 0) {
-                        $minPay = min(300, $remainingDue);
-                        $maxPay = $remainingDue;
-                        $payAmount = rand((int)$minPay, (int)$maxPay);
-    
-                        $payment = Payment::create([
-                            'vts_account_id' => $account->id,
-                            'amount' => $payAmount,
-                            'payment_date' => Carbon::now()->subDays(rand(1, 30)),
-                            'method' => $faker->randomElement(['bkash', 'nagad', 'bank']),
-                            'reference' => strtoupper($faker->bothify('??######')),
-                            'status' => 'success',
-                        ]);
-    
-                        PaymentInvoice::create([
-                            'payment_id' => $payment->id,
-                            'invoice_id' => $invoice->id,
-                            'allocated_amount' => $payAmount,
-                        ]);
-    
-                        // Ledger entry
-                        CustomerLedger::create([
-                            'vts_account_id' => $account->id,
-                            'transaction_date' => $payment->payment_date,
-                            'type' => 'payment',
-                            'reference_type' => Payment::class,
-                            'reference_id' => $payment->id,
-                            'debit' => 0,
-                            'credit' => $payAmount,
-                            'description' => 'Payment received',
-                        ]);
-    
-                        $invoice->increment('paid_amount', $payAmount);
-                        if ($invoice->paid_amount >= $invoice->total_amount) {
-                            $invoice->update(['status' => 'paid']);
-                        } elseif ($invoice->paid_amount > 0) {
-                            $invoice->update(['status' => 'partially_paid']);
-                        }
-                    }
-                }
-            }
-        });
+        $this->command->info('Database seeding completed successfully!');
+        $this->command->info('Total VtsAccounts: ' . VtsAccount::count());
+        $this->command->info('Total Devices (VTS): ' . Vts::count());
+        $this->command->info('Total Invoices: ' . Invoice::count());
+        $this->command->info('Total Invoice Items: ' . InvoiceItem::count());
+        $this->command->info('Total Payments: ' . Payment::count());
     }
 }

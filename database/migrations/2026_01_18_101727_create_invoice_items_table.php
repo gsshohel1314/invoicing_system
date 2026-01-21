@@ -17,8 +17,8 @@ class CreateInvoiceItemsTable extends Migration
             $table->id();
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
             $table->foreignId('vts_id')->constrained('vts')->cascadeOnDelete();
-            $table->date('period_start');
-            $table->date('period_end');
+            $table->date('period_start')->nullable();
+            $table->date('period_end')->nullable();
             $table->boolean('is_prorated')->default(false);
             $table->decimal('quantity', 10, 4)->default(1.0000); // Quantity in months (1.0000 = 1 month, 0.5000 = 15 days etc)
             $table->decimal('unit_price', 10, 2);
@@ -27,6 +27,14 @@ class CreateInvoiceItemsTable extends Migration
             $table->string('description')->nullable();
             $table->json('props')->nullable();
             $table->timestamps();
+
+            // add index
+            $table->index('invoice_id');
+            $table->index('vts_id');
+            $table->index(['invoice_id', 'vts_id']);
+            $table->index(['period_start', 'period_end']);
+            $table->index('amount');
+            $table->index('is_prorated');
         });
     }
 

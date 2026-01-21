@@ -11,6 +11,8 @@ class invoice extends Model
 
     protected $table = 'invoices';
 
+    protected $guarded = ['id'];
+
     // A invoice belongs to an account.
     public function account()
     {

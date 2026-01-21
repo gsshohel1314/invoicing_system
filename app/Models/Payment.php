@@ -11,6 +11,8 @@ class Payment extends Model
 
     protected $table = 'payments';
 
+    protected $guarded = ['id'];
+
     // A payment belongs to an account.
     public function account()
     {

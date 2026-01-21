@@ -11,6 +11,8 @@ class InvoiceItem extends Model
 
     protected $table = 'invoice_items';
 
+    protected $guarded = ['id'];
+
     // A invoice item belongs to an invoice.
     public function invoice()
     {

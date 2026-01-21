@@ -11,6 +11,8 @@ class CustomerLedger extends Model
 
     protected $table = 'customer_ledgers';
 
+    protected $guarded = ['id'];
+
     public function account()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');

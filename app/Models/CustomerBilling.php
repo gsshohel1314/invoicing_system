@@ -11,8 +11,10 @@ class CustomerBilling extends Model
 
     protected $table = 'customer_billings';
 
+    protected $guarded = ['id'];
+
     // The customer billing belongs to a VTS account.
-    public function account()
+    public function vtsAccount()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');
     }

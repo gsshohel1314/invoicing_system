@@ -11,6 +11,8 @@ class VtsOffer extends Model
 
     protected $table = 'vts_offers';
 
+    protected $guarded = ['id'];
+
     public function vts()
     {
         return $this->belongsTo(Vts::class);

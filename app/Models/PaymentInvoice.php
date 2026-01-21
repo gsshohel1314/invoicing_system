@@ -11,6 +11,8 @@ class PaymentInvoice extends Model
 
     protected $table = 'payment_invoices';
 
+    protected $guarded = ['id'];
+
     public function payment()
     {
         return $this->belongsTo(Payment::class);
