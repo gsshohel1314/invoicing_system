@@ -13,6 +13,13 @@ class InvoiceItem extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'period_start' => 'date',
+        'period_end'   => 'date',
+        'created_at'   => 'datetime',
+        'updated_at'   => 'datetime',
+    ];
+
     // A invoice item belongs to an invoice.
     public function invoice()
     {

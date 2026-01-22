@@ -13,6 +13,13 @@ class invoice extends Model
 
     protected $guarded = ['id'];
 
+    protected $casts = [
+        'issued_date' => 'date',
+        'due_date'    => 'date',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
+    ];
+
     // A invoice belongs to an vts account.
     public function vtsAccount()
     {

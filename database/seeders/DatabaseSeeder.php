@@ -26,15 +26,16 @@ class DatabaseSeeder extends Seeder
 
         // Create Vts Account
         $accountsData = [
-            ['name' => 'রহিম এন্টারপ্রাইজ', 'customer_type' => 'retail'],
-            ['name' => 'করিম মোটরস', 'customer_type' => 'corporate'],
-            ['name' => 'সিদ্দিক ট্রেডার্স', 'customer_type' => 'retail'],
+            ['name' => 'রহিম এন্টারপ্রাইজ', 'email' => 'rahim@gmail.com', 'customer_type' => 'retail'],
+            ['name' => 'করিম মোটরস', 'email' => 'karim@gmail.com', 'customer_type' => 'corporate'],
+            ['name' => 'সিদ্দিক ট্রেডার্স', 'email' => 'siddak@gmail.com', 'customer_type' => 'retail'],
         ];
 
         $accounts = new Collection();
         foreach ($accountsData as $data) {
             $accounts->push(VtsAccount::create([
                 'name'          => $data['name'],
+                'email'         => $data['email'],
                 'customer_type' => $data['customer_type'],
                 'status'        => 1,
             ]));

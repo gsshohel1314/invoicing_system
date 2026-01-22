@@ -18,7 +18,7 @@ class InvoiceService
         $billingMonth = $today->format('Y-m');
 
         // Get calendar mode customer
-        $calendarAccounts = VtsAccount::select('id', 'name', 'customer_type', 'status')
+        $calendarAccounts = VtsAccount::select('id', 'name', 'email', 'customer_type', 'status')
             ->with('billing:id,vts_account_id,bill_type,invoice_generation_day,billing_mode,status')
             ->where('customer_type', 'retail')
             ->where('status', 1)
@@ -146,6 +146,12 @@ class InvoiceService
                     'reference_id'      => $invoice->id,
                     'description'       => "Consolidated invoice for {$billingMonth}",
                 ]);
+
+                // PDF generator
+                if ($account->email) {
+                    \Illuminate\Support\Facades\Mail::to($account->email)
+                        ->queue(new \App\Mail\InvoiceIssued($invoice));
+                }
 
                 Log::info("Invoice {$invoice->invoice_number} created for account {$account->id} — total {$total}");
             });
