@@ -16,6 +16,7 @@ class CreateVtsAccountsTable extends Migration
         Schema::create('vts_accounts', function (Blueprint $table) {
             $table->id();
             $table->string('name');
+            $table->string('email')->unique()->nullable();
             $table->enum('customer_type', ['retail', 'corporate']);
             $table->tinyInteger('status')->default(1)->comment('1 = active, 0 = inactive');
             $table->timestamps();
