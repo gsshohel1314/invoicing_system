@@ -30,6 +30,12 @@ class VtsAccount extends Model
         return $this->hasMany(Invoice::class, 'vts_account_id');
     }
 
+    // An account will have many invoice items.
+    public function invoiceItems()
+    {
+        return $this->hasMany(InvoiceItem::class, 'vts_account_id');
+    }
+
     // An account will have many payments.
     public function payments()
     {

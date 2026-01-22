@@ -13,14 +13,14 @@ class invoice extends Model
 
     protected $guarded = ['id'];
 
-    // A invoice belongs to an account.
-    public function account()
+    // A invoice belongs to an vts account.
+    public function vtsAccount()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');
     }
 
     // An invoice will have many invoice items. (multiple devices)
-    public function items()
+    public function invoiceItems()
     {
         return $this->hasMany(InvoiceItem::class, 'invoice_id');
     }
@@ -42,23 +42,5 @@ class invoice extends Model
     public function allocations()
     {
         return $this->hasMany(PaymentInvoice::class, 'invoice_id');
-    }
-
-    // Will be called when issuing invoice
-    public function issue()
-    {
-        if ($this->status !== 'draft') {
-            return; // Already issued
-        }
-
-        $this->issued_date = now();
-        $this->due_date = now()->addDays(7); // issued_date + 7 days
-        $this->status = 'unpaid'; // If there is no payment, unpaid
-        $this->save();
-
-        // Optional: Dispatch jobs to generate PDF, send email/SMS
-        // Example:
-        // GenerateInvoicePdfJob::dispatch($this);
-        // SendInvoiceToCustomerJob::dispatch($this);
     }
 }

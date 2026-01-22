@@ -19,6 +19,12 @@ class InvoiceItem extends Model
         return $this->belongsTo(Invoice::class, 'invoice_id');
     }
 
+    // A invoice belongs to an vts account.
+    public function vtsAccount()
+    {
+        return $this->belongsTo(VtsAccount::class, 'vts_account_id');
+    }
+
     // A invoice item belongs to a vts (device).
     public function vts()
     {

@@ -16,6 +16,7 @@ class CreateInvoiceItemsTable extends Migration
         Schema::create('invoice_items', function (Blueprint $table) {
             $table->id();
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete();
             $table->foreignId('vts_id')->constrained('vts')->cascadeOnDelete();
             $table->date('period_start')->nullable();
             $table->date('period_end')->nullable();
@@ -32,9 +33,8 @@ class CreateInvoiceItemsTable extends Migration
             $table->index('invoice_id');
             $table->index('vts_id');
             $table->index(['invoice_id', 'vts_id']);
+            $table->index(['vts_account_id', 'invoice_id']);
             $table->index(['period_start', 'period_end']);
-            $table->index('amount');
-            $table->index('is_prorated');
         });
     }
 

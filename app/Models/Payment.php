@@ -13,8 +13,8 @@ class Payment extends Model
 
     protected $guarded = ['id'];
 
-    // A payment belongs to an account.
-    public function account()
+    // A payment belongs to an vts account.
+    public function vtsAccount()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');
     }

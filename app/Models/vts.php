@@ -15,8 +15,8 @@ class Vts extends Model
         'activation_date' => 'date',
     ];
 
-    // A device belongs to an account.
-    public function account()
+    // A device belongs to an vts account.
+    public function vtsAccount()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');
     }

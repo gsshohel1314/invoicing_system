@@ -13,7 +13,7 @@ class CustomerLedger extends Model
 
     protected $guarded = ['id'];
 
-    public function account()
+    public function vtsAccount()
     {
         return $this->belongsTo(VtsAccount::class, 'vts_account_id');
     }
