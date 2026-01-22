@@ -16,7 +16,7 @@ class CreateInvoicesTable extends Migration
         Schema::create('invoices', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete();
-            $table->string('invoice_number')->unique();
+            $table->string('invoice_number')->nullable()->unique();
 
             $table->char('billing_month', 7)->nullable(); // YYYY-MM
             $table->date('billing_period_start')->nullable();

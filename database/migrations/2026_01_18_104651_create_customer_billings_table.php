@@ -25,8 +25,11 @@ class CreateCustomerBillingsTable extends Migration
             $table->foreignId('last_invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
             $table->date('last_pay_date')->nullable();
 
-            $table->enum('status', ['active','inactive'])->default('active');
+            $table->tinyInteger('status')->default(1)->comment('1 = active, 0 = inactive');
             $table->timestamps();
+
+            // add index
+            $table->index(['billing_mode', 'bill_type', 'status']);
         });
     }
 

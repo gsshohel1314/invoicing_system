@@ -22,7 +22,7 @@ class CreateInvoiceItemsTable extends Migration
             $table->date('period_end')->nullable();
             $table->boolean('is_prorated')->default(false);
             $table->decimal('quantity', 10, 4)->default(1.0000); // Quantity in months (1.0000 = 1 month, 0.5000 = 15 days etc)
-            $table->decimal('unit_price', 10, 2);
+            $table->decimal('unit_price', 10, 2)->default(0);
             $table->decimal('discount_amount', 10, 2)->default(0);
             $table->decimal('amount', 10, 2);
             $table->string('description')->nullable();

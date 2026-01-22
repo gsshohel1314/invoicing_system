@@ -29,8 +29,6 @@ class DatabaseSeeder extends Seeder
             ['name' => 'রহিম এন্টারপ্রাইজ', 'customer_type' => 'retail'],
             ['name' => 'করিম মোটরস', 'customer_type' => 'corporate'],
             ['name' => 'সিদ্দিক ট্রেডার্স', 'customer_type' => 'retail'],
-            // ['name' => 'বিসমিল্লাহ লজিস্টিকস', 'customer_type' => 'corporate'],
-            // ['name' => 'নতুন কাস্টমার টেস্ট', 'customer_type' => 'retail'],
         ];
 
         $accounts = new Collection();
@@ -38,7 +36,7 @@ class DatabaseSeeder extends Seeder
             $accounts->push(VtsAccount::create([
                 'name'          => $data['name'],
                 'customer_type' => $data['customer_type'],
-                'status'        => 'active',
+                'status'        => 1,
             ]));
         }
 
@@ -47,11 +45,10 @@ class DatabaseSeeder extends Seeder
             // Customer Billing config
             CustomerBilling::create([
                 'vts_account_id'         => $account->id,
-                // 'bill_type'              => $faker->randomElement(['prepaid', 'postpaid']),
                 'bill_type'              => 'prepaid',
                 'invoice_generation_day' => 3,
                 'billing_mode'           => 'calendar',
-                'status'                 => 'active',
+                'status'                 => 1,
             ]);
 
             // Create 2 vts for every vts account
@@ -74,7 +71,7 @@ class DatabaseSeeder extends Seeder
                     'service_start_date'  => $vts->activation_date,
                     'service_expiry_date' => null,
                     'next_billing_date'   => $vts->activation_date->copy()->addMonths(1),
-                    'status'              => 'active',
+                    'status'              => 1,
                 ]);
             }
         });

@@ -3,32 +3,35 @@
 namespace App\Services;
 
 use Carbon\Carbon;
-use App\Models\Vts;
 use App\Models\Invoice;
 use App\Models\VtsAccount;
 use App\Models\InvoiceItem;
 use App\Models\CustomerLedger;
-use App\Models\CustomerBilling;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 
 class InvoiceService
 {
     public function generateInvoices()
     {
         $today = Carbon::today();
+        $billingMonth = $today->format('Y-m');
 
         // Get calendar mode customer
-        $calendarAccounts = CustomerBilling::where('billing_mode', 'calendar')
-            ->where('status', 'active')
-            ->with('vtsAccount')
-            ->get()
-            ->map(fn($billing) => $billing->vtsAccount);
+        $calendarAccounts = VtsAccount::select('id', 'name', 'customer_type', 'status')
+            ->with('billing:id,vts_account_id,bill_type,invoice_generation_day,billing_mode,status')
+            ->where('customer_type', 'retail')
+            ->where('status', 1)
+            ->whereHas('billing', function ($q) {
+                $q->where('billing_mode', 'calendar')
+                ->where('bill_type', 'prepaid')
+                ->where('status', 1);
+            })
+            ->get();
 
         // Calendar mode: Check invoice generation day per customer
         foreach ($calendarAccounts as $account) {
-            $billingConfig = $account->billing;
-            $genDay = $billingConfig->invoice_generation_day ?? 1; // Default 1st date
-            $billingMonth = $today->format('Y-m');
+            $genDay = $account->billing->invoice_generation_day ?? 1; // Default 1st date
 
             // If today >= generation day and no invoice for this month
             if ($today->day >= $genDay && !$this->hasInvoiceForMonth($account, $billingMonth)) {
@@ -40,38 +43,25 @@ class InvoiceService
     /**
      * Calendar mode: One consolidated invoice per month, prorated per device
      */
-    private function generateCalendarInvoice(VtsAccount $account, string $billingMonth)
+    private function generateCalendarInvoice(VtsAccount $account, string $billingMonth): void
     {
         DB::transaction(function () use ($account, $billingMonth) {
-            $monthStart = Carbon::parse($billingMonth . '-01');
-            $monthEnd = $monthStart->copy()->endOfMonth();
-            $daysInMonth = $monthStart->daysInMonth;
+            $monthStart   = Carbon::parse($billingMonth . '-01')->startOfDay();
+            $monthEnd     = $monthStart->copy()->endOfMonth();
+            $daysInMonth  = $monthStart->daysInMonth;
 
-            // Make invoice 
-            $invoice = Invoice::create([
-                'vts_account_id'        => $account->id,
-                'invoice_number'        => $this->generateInvoiceNumber(),
-                'billing_month'         => $billingMonth,
-                'billing_period_start'  => $monthStart,
-                'billing_period_end'    => $monthEnd,
-                'issued_date'           => today(),
-                'due_date'              => today()->addDays(7), // Default after 7 days
-                'subtotal'              => 0,
-                'discount_amount'       => 0,
-                'total_amount'          => 0,
-                'paid_amount'           => 0,
-                'status'                => 'draft',
-                'is_consolidated'       => true,
-                'is_advance_billed'     => true,
-                'generated_by'          => 'cron'
-            ]);
+            // Filter devices that are active and activated before month end
+            $devices = $account->vts
+                ->where('service_status', 'active')
+                ->where('activation_date', '<=', $monthEnd);
+
+            if ($devices->isEmpty()) {
+                Log::info("Invoice skipped for account {$account->id} — no active devices");
+                return; // No billable devices; skip invoice
+            }
 
             $total = 0;
-
-            $devices = $account->vts()
-                ->where('service_status', 'active')
-                ->where('activation_date', '<=', $monthEnd)
-                ->get();
+            $invoiceItemsData = [];
 
             foreach ($devices as $device) {
                 $activation = Carbon::parse($device->activation_date);
@@ -80,39 +70,74 @@ class InvoiceService
                 $effectiveStart = $activation->greaterThan($monthStart) ? $activation : $monthStart;
                 $activeDays = $monthEnd->diffInDays($effectiveStart) + 1;
 
-                $billing = $device->billing;
-                $monthlyFee = $billing ? $billing->actual_monthly_fee : ($device->actual_monthly_fee ?? 350.00);
-                $dailyRate = $monthlyFee / $daysInMonth;
-                $amount = $dailyRate * $activeDays;
+                $monthlyFee = data_get($device, 'billing.actual_monthly_fee', $device->actual_monthly_fee ?? 350.00); // with default amount
+                // $monthlyFee = data_get($device, 'billing.actual_monthly_fee'); // without default amount
 
-                InvoiceItem::create([
-                    'invoice_id'        => $invoice->id,
-                    'vts_id'            => $device->id,
-                    'period_start'      => $effectiveStart,
-                    'period_end'        => $monthEnd,
-                    'is_prorated'       => $activeDays < $daysInMonth,
-                    'quantity'          => round($activeDays / $daysInMonth, 4),
-                    'unit_price'        => $monthlyFee,
-                    'discount_amount'   => 0,
-                    'amount'            => round($amount, 2),
-                    'description'       => "GPS Tracking - {$monthStart->format('F Y')} (Prorated {$activeDays} days)",
-                ]);
+                if ($monthlyFee === null) {
+                    Log::info("Skipping device {$device->id} — no unit_price set");
+                    continue;
+                }
+
+                $amount = round(($monthlyFee * $activeDays) / $daysInMonth, 2);
+
+                if ($amount <= 0) {
+                    Log::info("Invoice item skipped for account {$account->id}, device {$device->id} — amount 0");
+                    continue;
+                }
+
+                $invoiceItemsData[] = [
+                    'vts_account_id' => $account->id,
+                    'vts_id'         => $device->id,
+                    'period_start'   => $effectiveStart,
+                    'period_end'     => $monthEnd,
+                    'is_prorated'    => $activeDays < $daysInMonth,
+                    'quantity'       => round($activeDays / $daysInMonth, 4),
+                    'unit_price'     => $monthlyFee,
+                    'discount_amount'=> 0,
+                    'amount'         => $amount,
+                    'description'    => "GPS Tracking - {$monthStart->format('F Y')} (Prorated {$activeDays} days)",
+                ];
 
                 $total += $amount;
             }
 
-            $invoice->update([
-                'subtotal'              => round($total, 2),
-                'total_amount'          => round($total, 2),
-                'status'                => 'unpaid',
-                'sent_at'               => now(),
-                'reminder_sent_count'   => 0,
+            if ($total <= 0) {
+                Log::info("Invoice skipped for account {$account->id} — total 0");
+                return; // Do not create zero-total invoice
+            }
+
+            // Create invoice
+            $invoice = Invoice::create([
+                'vts_account_id'       => $account->id,
+                'billing_month'        => $billingMonth,
+                'billing_period_start' => $monthStart,
+                'billing_period_end'   => $monthEnd,
+                'issued_date'          => now(),
+                'due_date'             => now()->addDays(config('billing.default_due_days', 7)),
+                'subtotal'             => $total,
+                'discount_amount'      => 0,
+                'total_amount'         => $total,
+                'paid_amount'          => 0,
+                'status'               => 'unpaid',
+                'is_consolidated'      => true,
+                'is_advance_billed'    => true,
+                'generated_by'         => 'cron',
             ]);
+
+            $invoice->update([
+                'invoice_number' => $this->generateInvoiceNumber($invoice->id),
+            ]);
+
+            // Create invoice items
+            foreach ($invoiceItemsData as $itemData) {
+                $itemData['invoice_id'] = $invoice->id;
+                InvoiceItem::create($itemData);
+            }
 
             // Ledger entry
             CustomerLedger::create([
                 'vts_account_id'    => $account->id,
-                'transaction_date'  => today(),
+                'transaction_date'  => now(),
                 'type'              => 'invoice',
                 'debit'             => round($total, 2),
                 'credit'            => 0,
@@ -120,49 +145,21 @@ class InvoiceService
                 'reference_id'      => $invoice->id,
                 'description'       => "Consolidated invoice for {$billingMonth}",
             ]);
+
+            Log::info("Invoice created for account {$account->id} — total {$total}");
         });
     }
 
     /**
      * Check if there is an invoice for this month for any account.
      */
-    private function hasInvoiceForMonth(VtsAccount $account, string $billingMonth)
+    private function hasInvoiceForMonth(VtsAccount $account, string $billingMonth): bool
     {
         return $account->invoices()->where('billing_month', $billingMonth)->exists();
     }
 
-    private function generateInvoiceNumber()
+    private function generateInvoiceNumber($invoiceId): string
     {
-        return 'INV-' . now()->format('Ym') . '-' . str_pad(Invoice::max('id') + 1, 4, '0', STR_PAD_LEFT);
+        return sprintf('INV-%s-%06d', now()->format('Ym'), $invoiceId);
     }
 }
-
-
-
-
-
-
-
-// Get activation mode customer
-// $activationAccounts = CustomerBilling::where('billing_mode', 'activation')
-//     ->where('status', 'active')
-//     ->with('account')
-//     ->get()
-//     ->map(function ($billing) {
-//         $billing->account;
-//     });
-
-// Activation mode: Check next billing date of each device
-// $devices = Vts::whereIn('vts_account_id', $activationAccounts->pluck('id'))
-//     ->whereHas('billing', function ($query) use ($today) {
-//         $query->where('status', 'active')
-//             ->where('next_billing_date', '<=', $today);
-//     })
-//     ->get();
-
-// $groupedDevices = $devices->groupBy('vts_account_id');
-
-// foreach ($groupedDevices as $accountId => $accountDevices) {
-//     $account = VtsAccount::find($accountId);
-//     $this->generateActivationInvoice($account, $accountDevices);
-// }

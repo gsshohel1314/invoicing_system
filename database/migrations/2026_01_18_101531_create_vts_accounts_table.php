@@ -17,8 +17,11 @@ class CreateVtsAccountsTable extends Migration
             $table->id();
             $table->string('name');
             $table->enum('customer_type', ['retail', 'corporate']);
-            $table->enum('status', ['active', 'inactive'])->default('active');
+            $table->tinyInteger('status')->default(1)->comment('1 = active, 0 = inactive');
             $table->timestamps();
+
+            // add index
+            $table->index(['customer_type', 'status']);
         });
     }
 
