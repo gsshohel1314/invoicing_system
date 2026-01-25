@@ -5,7 +5,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class CustomerSummaryView extends Model
+class CustomerSummary extends Model
 {
     protected $table = 'customer_summary';
     public $timestamps = false;
