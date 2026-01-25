@@ -34,6 +34,14 @@ return [
             'driver' => 'sync',
         ],
 
+        'invoice-emails' => [
+            'driver' => 'database',  // or 'redis' if using redis
+            'table'  => 'jobs',
+            'queue'  => 'invoice-emails',
+            'retry_after' => 90,
+            'after_commit' => false,
+        ],
+
         'database' => [
             'driver' => 'database',
             'table' => 'jobs',

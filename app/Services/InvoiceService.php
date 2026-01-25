@@ -6,6 +6,7 @@ use Carbon\Carbon;
 use App\Models\Invoice;
 use App\Models\VtsAccount;
 use App\Models\InvoiceItem;
+use App\Jobs\SendInvoiceEmail;
 use App\Models\CustomerLedger;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -149,8 +150,9 @@ class InvoiceService
 
                 // PDF generator
                 if ($account->email) {
-                    \Illuminate\Support\Facades\Mail::to($account->email)
-                        ->queue(new \App\Mail\InvoiceIssued($invoice));
+                    SendInvoiceEmail::dispatch($invoice)
+                        ->onQueue('invoice-emails')
+                        ->delay(now()->addSeconds(10)); // Short delay so that the invoice is fully committed
                 }
 
                 Log::info("Invoice {$invoice->invoice_number} created for account {$account->id} — total {$total}");
