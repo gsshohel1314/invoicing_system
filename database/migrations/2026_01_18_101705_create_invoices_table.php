@@ -30,6 +30,7 @@ class CreateInvoicesTable extends Migration
             $table->decimal('paid_amount', 10, 2)->default(0);
             $table->decimal('due_amount', 10, 2)->virtual()->storedAs('total_amount - paid_amount');
             $table->enum('status', ['draft', 'unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'])->default('draft');
+            $table->enum('email_status', ['pending', 'sent', 'failed'])->default('pending');
             $table->boolean('is_consolidated')->default(true); // is multiple device invoice or not
 
             $table->boolean('is_advance_billed')->default(false);
