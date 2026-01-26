@@ -20,7 +20,6 @@ class InvoiceService
 
         // Get calendar mode customer
         $calendarAccounts = VtsAccount::select('id', 'name', 'email', 'customer_type', 'status')
-            ->with('billing:id,vts_account_id,bill_type,invoice_generation_day,billing_mode,status')
             ->where('customer_type', 'retail')
             ->where('status', 1)
             ->whereHas('billing', function ($q) {
@@ -28,6 +27,9 @@ class InvoiceService
                 ->where('bill_type', 'prepaid')
                 ->where('status', 1);
             })
+            ->with([
+                'billing:id,vts_account_id,bill_type,invoice_generation_day,billing_mode,status'
+            ])
             ->get();
 
         // Calendar mode: Check invoice generation day per customer
@@ -52,10 +54,22 @@ class InvoiceService
                 $monthEnd     = $monthStart->copy()->endOfMonth();
                 $daysInMonth  = $monthStart->daysInMonth;
 
-                // Filter devices that are active and activated before month end
-                $devices = $account->vts
+                // Filter devices
+                $devices = $account->vts()
+                    ->select(['id', 'service_status'])
                     ->where('service_status', 'active')
-                    ->where('activation_date', '<=', $monthEnd);
+                    ->whereHas('billing', function ($q) use ($monthStart, $monthEnd) {
+                        $q->where('status', 1)
+                        ->where('service_start_date', '<=', $monthEnd)
+                        ->where(function ($q) use ($monthStart) {
+                            $q->whereNull('service_expiry_date')
+                                ->orWhere('service_expiry_date', '>=', $monthStart);
+                        });
+                    })
+                    ->with([
+                        'billing:id,vts_id,monthly_fee,actual_monthly_fee,device_install_date,service_start_date,service_expiry_date,status'
+                    ])
+                    ->get();
 
                 if ($devices->isEmpty()) {
                     Log::info("Invoice skipped for account {$account->id} — no active devices");
@@ -66,17 +80,17 @@ class InvoiceService
                 $invoiceItemsData = [];
 
                 foreach ($devices as $device) {
-                    $activation = Carbon::parse($device->activation_date);
+                    $billing = $device->billing;
+                    $serviceStart = Carbon::parse($billing->service_start_date);
 
                     // effective active period in this month
-                    $effectiveStart = $activation->greaterThan($monthStart) ? $activation : $monthStart;
+                    $effectiveStart = $serviceStart->greaterThan($monthStart) ? $serviceStart : $monthStart;
                     $activeDays = $monthEnd->diffInDays($effectiveStart) + 1;
 
-                    $monthlyFee = data_get($device, 'billing.actual_monthly_fee', $device->actual_monthly_fee ?? 350.00); // with default amount
-                    // $monthlyFee = data_get($device, 'billing.actual_monthly_fee'); // without default amount
+                    $monthlyFee = $billing->actual_monthly_fee ?? $billing->monthly_fee ?? 350.00;
 
-                    if ($monthlyFee === null) {
-                        Log::info("Skipping device {$device->id} — no unit_price set");
+                    if ($monthlyFee <= 0) {
+                        Log::info("Skipping device {$device->id} — invalid monthly fee");
                         continue;
                     }
 

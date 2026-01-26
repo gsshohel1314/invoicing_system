@@ -54,11 +54,10 @@ class DatabaseSeeder extends Seeder
             // Create 2–3 Vts devices per account
             $deviceCount = rand(2, 3);
             for ($i = 0; $i < $deviceCount; $i++) {
-                $activation = Carbon::now()->subMonths(rand(1, 6));
+                $installation_date = Carbon::now()->subMonths(rand(1, 6));
 
                 $vts = Vts::create([
                     'vts_account_id' => $account->id,
-                    'activation_date' => $activation,
                     'imei' => '35' . rand(1000000000000, 9999999999999),
                 ]);
 
@@ -67,9 +66,10 @@ class DatabaseSeeder extends Seeder
                     'vts_id' => $vts->id,
                     'monthly_fee' => 350.00,
                     'actual_monthly_fee' => $faker->randomFloat(2, 300, 350),
-                    'service_start_date' => $vts->activation_date,
+                    'device_install_date' => $installation_date,
+                    'service_start_date' => $installation_date,
                     'service_expiry_date' => null,
-                    'next_billing_date' => $vts->activation_date->copy()->addMonths(1),
+                    'next_billing_date' => $installation_date->copy()->addMonths(1),
                     'current_balance' => 0,
                     'last_invoice_id' => null,
                     'last_pay_date' => null,
@@ -146,7 +146,7 @@ class DatabaseSeeder extends Seeder
 
                 $selectedDevices = $vts->random(min(3, $vts->count()));
                 foreach ($selectedDevices as $device) {
-                    $periodStart = $device->activation_date->copy()->addMonths($i);
+                    $periodStart = $device->device_install_date->copy()->addMonths($i);
                     $periodEnd = $periodStart->copy()->addDays(29);
                     // $quantity = rand(80, 100) / 100; // 0.8 to 1.0
                     $quantity = 1; // full month

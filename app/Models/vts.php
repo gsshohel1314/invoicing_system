@@ -11,10 +11,6 @@ class Vts extends Model
 
     protected $guarded = ['id'];
 
-    protected $casts = [
-        'activation_date' => 'date',
-    ];
-
     // A device belongs to an vts account.
     public function vtsAccount()
     {

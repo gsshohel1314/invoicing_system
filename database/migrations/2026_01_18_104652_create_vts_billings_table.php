@@ -20,6 +20,7 @@ class CreateVtsBillingsTable extends Migration
             $table->decimal('monthly_fee', 10, 2);
             $table->decimal('actual_monthly_fee', 10, 2)->nullable();
             
+            $table->date('device_install_date')->nullable();
             $table->date('service_start_date')->nullable();
             $table->date('service_expiry_date')->nullable();
             $table->date('next_billing_date')->nullable();

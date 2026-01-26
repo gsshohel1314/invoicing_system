@@ -19,7 +19,7 @@ class CreateCustomerBillingsTable extends Migration
 
             $table->enum('bill_type', ['prepaid', 'postpaid']);
             $table->unsignedTinyInteger('invoice_generation_day')->nullable()->default(1);
-            $table->enum('billing_mode', ['calendar', 'activation'])->default('calendar');
+            $table->enum('billing_mode', ['calendar', 'installation'])->default('calendar');
 
             $table->decimal('current_balance', 10, 2)->default(0);
             $table->foreignId('last_invoice_id')->nullable()->constrained('invoices')->nullOnDelete();
