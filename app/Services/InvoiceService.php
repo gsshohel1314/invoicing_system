@@ -111,6 +111,7 @@ class InvoiceService
                         'unit_price'     => $monthlyFee,
                         'discount_amount'=> 0,
                         'amount'         => $amount,
+                        'status'         => 'draft',
                         'description'    => "GPS Tracking - {$monthStart->format('F Y')} (Prorated {$activeDays} days)",
                     ];
 
@@ -137,7 +138,7 @@ class InvoiceService
                     'discount_amount'      => 0,
                     'total_amount'         => $total,
                     'paid_amount'          => 0,
-                    'status'               => 'unpaid',
+                    'status'               => 'draft',
                     'is_consolidated'      => true,
                     'is_advance_billed'    => true,
                     'generated_by'         => 'cron',

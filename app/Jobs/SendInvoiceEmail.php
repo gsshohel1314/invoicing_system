@@ -5,6 +5,7 @@ namespace App\Jobs;
 use App\Models\Invoice;
 use App\Mail\InvoiceIssued;
 use Illuminate\Bus\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Queue\SerializesModels;
@@ -37,7 +38,19 @@ class SendInvoiceEmail implements ShouldQueue
 
         Log::info("Invoice email sent for {$this->invoice->invoice_number}");
 
-        $this->invoice->update(['email_status' => 'sent']);
+        DB::transaction(function () {
+            // Invoice status update
+            $this->invoice->update([
+                'status'       => 'unpaid',
+                'email_status' => 'sent',
+                'sent_at'      => now(),
+            ]);
+
+            // Invoice items status update
+            $this->invoice->invoiceItems()->update([
+                'status' => 'unpaid'
+            ]);
+        });
     }
 
     public function failed(\Throwable $exception): void

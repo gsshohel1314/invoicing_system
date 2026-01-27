@@ -25,6 +25,7 @@ class CreateInvoiceItemsTable extends Migration
             $table->decimal('unit_price', 10, 2)->default(0);
             $table->decimal('discount_amount', 10, 2)->default(0);
             $table->decimal('amount', 10, 2);
+            $table->enum('status', ['draft', 'unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'])->default('draft');
             $table->string('description')->nullable();
             $table->json('props')->nullable();
             $table->timestamps();
@@ -35,6 +36,7 @@ class CreateInvoiceItemsTable extends Migration
             $table->index(['invoice_id', 'vts_id']);
             $table->index(['vts_account_id', 'invoice_id']);
             $table->index(['period_start', 'period_end']);
+            $table->index('status');
         });
     }
 
