@@ -47,8 +47,9 @@ class DatabaseSeeder extends Seeder
             CustomerBilling::create([
                 'vts_account_id'         => $account->id,
                 'bill_type'              => 'prepaid',
-                'invoice_generation_day' => 3,
                 'billing_mode'           => 'calendar',
+                'invoice_generation_day' => 3,
+                'default_due_days'       => 7,
                 'status'                 => 1,
             ]);
 

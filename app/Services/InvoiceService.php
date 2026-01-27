@@ -28,7 +28,7 @@ class InvoiceService
                 ->where('status', 1);
             })
             ->with([
-                'billing:id,vts_account_id,bill_type,invoice_generation_day,billing_mode,status'
+                'billing:id,vts_account_id,bill_type,billing_mode,invoice_generation_day,default_due_days,status'
             ])
             ->get();
 
@@ -123,13 +123,16 @@ class InvoiceService
                 }
 
                 // Create invoice
+                $issuedDate = now();
+                $dueDays = $account->billing ? $account->billing->default_due_days : 7;
+                $dueDate = $issuedDate->copy()->addDays($dueDays);
                 $invoice = Invoice::create([
                     'vts_account_id'       => $account->id,
                     'billing_month'        => $billingMonth,
                     'billing_period_start' => $monthStart,
                     'billing_period_end'   => $monthEnd,
-                    'issued_date'          => now(),
-                    'due_date'             => now()->addDays(config('billing.default_due_days', 7)),
+                    'issued_date'          => $issuedDate,
+                    'due_date'             => $dueDate,
                     'subtotal'             => $total,
                     'discount_amount'      => 0,
                     'total_amount'         => $total,
