@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>Record New Payment - iTracker Admin</title>
     <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
@@ -44,7 +45,13 @@
                 </div>
 
                 <div class="card-body">
-                    <form method="POST" action="/payments" id="paymentForm">
+                    <!-- Form Message (Success/Error) -->
+                    <div id="form-message" class="alert alert-dismissible d-none fade show" role="alert">
+                        <span id="message-text"></span>
+                    </div>
+
+                    <form method="POST" action="{{ route('payments.store') }}" id="paymentForm">
+                        @csrf
                         <div class="row">
                             <!-- Customer Type -->
                             <div class="col-md-6">
@@ -162,6 +169,10 @@
                             <button type="submit" class="btn btn-primary btn-lg px-5">
                                 <i class="fas fa-save mr-2"></i> Record Payment
                             </button>
+                            <button type="button" class="btn btn-secondary btn-lg px-5 ml-2 d-none" id="loading-btn" disabled>
+                                <span class="spinner-border spinner-border-sm mr-2" role="status" aria-hidden="true"></span>
+                                Processing...
+                            </button>
                         </div>
                     </form>
                 </div>
@@ -230,6 +241,10 @@
 
             $.ajax({
                 url: `/customers/by-type/${type}`,
+                type: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(data) {
                     let html = '<option value="">-- Select customer --</option>';
                     $.each(data, function(i, c) {
@@ -257,6 +272,10 @@
 
             $.ajax({
                 url: `/invoices/unpaid/${accountId}`,
+                type: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(data) {
                     let html = '<option value="">-- Select invoice --</option>';
                     $.each(data, function(i, inv) {
@@ -294,6 +313,10 @@
 
             $.ajax({
                 url: `/invoice-items/${invoiceId}`,
+                type: 'GET',
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
                 success: function(items) {
                     let totalDue = 0;
                     let rows = [];
@@ -304,26 +327,28 @@
                         items.forEach(item => {
                             const period = (item.period_start || 'N/A') + ' - ' + (item.period_end || 'N/A');
                             const unitPrice = parseFloat(item.unit_price || 0).toFixed(2);
-                            const amount = parseFloat(item.amount || 0);
+                            // const amount = parseFloat(item.amount || 0);
+                            const dueAmount = parseFloat(item.due_amount || 0);
 
-                            totalDue += amount;
+                            // totalDue += amount;
+                            totalDue += dueAmount;
 
                             rows.push(`
                                 <tr>
                                     <td>${item.description || 'N/A'}</td>
                                     <td>${period}</td>
                                     <td class="text-right">${unitPrice}</td>
-                                    <td class="text-right">${amount.toFixed(2)}</td>
+                                    <td class="text-right">${dueAmount.toFixed(2)}</td>
                                     <td class="text-right">
                                         <input 
                                             type="number" 
                                             class="form-control text-right payable-input" 
                                             name="allocated_amount[${item.id}]" 
-                                            value="${amount.toFixed(2)}" 
+                                            value="${dueAmount.toFixed(2)}" 
                                             step="0.01" 
                                             min="0" 
-                                            max="${amount}"
-                                            data-original-amount="${amount}"
+                                            max="${dueAmount}"
+                                            data-original-amount="${dueAmount}"
                                             readonly
                                         >
                                     </td>
@@ -339,7 +364,7 @@
                                     <th>Description</th>
                                     <th>Period</th>
                                     <th class="text-right">Unit Price (৳)</th>
-                                    <th class="text-right">Amount (৳)</th>
+                                    <th class="text-right">Due Amount (৳)</th>
                                     <th class="text-right">Payable Amount (৳)</th>
                                 </tr>
                             </thead>
@@ -453,7 +478,77 @@
                 $advanceEl.text('0.00 ৳').attr('class', 'value text-muted');
             }
         }
-</script>
+
+        /**
+         * =========================
+         * Form Submit via AJAX
+         * =========================
+         */
+        $('#paymentForm').on('submit', function(e) {
+            e.preventDefault();
+
+            const $form = $(this);
+            const $submitBtn = $('#submit-btn');
+            const $loadingBtn = $('#loading-btn');
+            const $message = $('#form-message');
+            const $messageText = $('#message-text');
+
+            $submitBtn.prop('disabled', true).addClass('d-none');
+            $loadingBtn.removeClass('d-none');            
+
+            $message.removeClass('alert-success alert-danger').hide();
+
+            $.ajax({
+                url: $form.attr('action'),
+                type: 'POST',
+                data: $form.serialize(),
+                headers: {
+                    'X-CSRF-TOKEN': $('meta[name="csrf-token"]').attr('content')
+                },
+                success: function(response) {
+                    $message.removeClass('d-none').hide();
+                    $message.addClass('alert-success').show();
+                    $messageText.text(response.message || 'Payment recorded successfully!');
+                    $form[0].reset();
+
+                    // Invoice Items section reset & hide
+                    $container.addClass('d-none');
+
+                    // dropdown reset
+                    $customer
+                        .html('<option value="">-- Select customer type first --</option>')
+                        .prop('disabled', true)
+                        .trigger('change');
+
+                    $invoice
+                        .html('<option value="">-- Select customer first --</option>')
+                        .prop('disabled', true)
+                        .trigger('change');
+
+                    setTimeout(function() {
+                        $message.fadeOut(500);
+                    }, 3000);
+                },
+                error: function(xhr) {
+                    const errorMsg = xhr.responseJSON?.message || 'Something went wrong. Please try again.';
+                    if (xhr.status === 419) errorMsg = 'CSRF token mismatch. Refresh page.';
+                    $message.addClass('alert-danger').show();
+                    $messageText.text(errorMsg);
+
+                    // Validation errors
+                    if (xhr.responseJSON?.errors) {
+                        Object.keys(xhr.responseJSON.errors).forEach(field => {
+                            $(`[name="${field}"]`).addClass('is-invalid');
+                        });
+                    }
+                },
+                complete: function() {
+                    $submitBtn.prop('disabled', false).removeClass('d-none');
+                    $loadingBtn.addClass('d-none');
+                }
+            });
+        });
+    </script>
 
 </body>
 </html>

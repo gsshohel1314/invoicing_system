@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\InvoiceController;
+use App\Http\Controllers\PaymentController;
 
 /*
 |--------------------------------------------------------------------------
@@ -19,3 +20,11 @@ Route::get('/', function () {
 });
 
 Route::get('/invoice/pdf/{invoice}', [InvoiceController::class, 'streamPdf'])->name('invoice.pdf')->middleware('signed.valid');
+
+
+Route::get('/customers/by-type/{type}', [PaymentController::class, 'getCustomersByType'])->name('customers.by-type');
+Route::get('/invoices/unpaid/{accountId}', [PaymentController::class, 'getUnpaidInvoices'])->name('invoices.unpaid');
+Route::get('/invoice-items/{invoiceId}', [PaymentController::class, 'getInvoiceItems'])->name('invoice-items');
+
+Route::get('/payments/create', [PaymentController::class, 'create'])->name('payments.create');
+Route::post('/payments', [PaymentController::class, 'store'])->name('payments.store');
