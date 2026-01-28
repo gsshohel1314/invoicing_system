@@ -56,7 +56,7 @@ class DatabaseSeeder extends Seeder
             // Create 2 vts for every vts account
             $deviceCount = 2;
             for ($i = 0; $i < $deviceCount; $i++) {
-                $installation_date = Carbon::createFromTimestamp($faker->dateTimeBetween('-3 months', 'now')->getTimestamp())->startOfDay();
+                $installation_date = Carbon::createFromTimestamp($faker->dateTimeBetween('-2 months', 'now')->getTimestamp())->startOfDay();
 
                 // Create vts
                 $vts = Vts::create([
@@ -68,7 +68,7 @@ class DatabaseSeeder extends Seeder
                 VtsBilling::create([
                     'vts_id'              => $vts->id,
                     'monthly_fee'         => 350.00,
-                    'actual_monthly_fee'  => round($faker->randomFloat(2, 300, 350)),
+                    'actual_monthly_fee'  => $faker->randomElement(range(300, 350, 10)) + 0.00,
                     'device_install_date' => $installation_date,
                     'service_start_date'  => $installation_date,
                     'service_expiry_date' => null,

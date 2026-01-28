@@ -94,7 +94,8 @@ class InvoiceService
                         continue;
                     }
 
-                    $amount = round(($monthlyFee * $activeDays) / $daysInMonth, 2);
+                    // $amount = round(($monthlyFee * $activeDays) / $daysInMonth, 2);
+                    $amount = round(($monthlyFee * $activeDays) / $daysInMonth, 0);
 
                     if ($amount <= 0) {
                         Log::info("Invoice item skipped for account {$account->id}, device {$device->id} — amount 0");

@@ -17,6 +17,7 @@ class CreatePaymentInvoicesTable extends Migration
             $table->id();
             $table->foreignId('payment_id')->constrained()->cascadeOnDelete()->unique();
             $table->foreignId('invoice_id')->constrained()->cascadeOnDelete()->unique();
+            $table->decimal('total_amount', 10, 2)->nullable();
             $table->decimal('allocated_amount', 10, 2);
             $table->json('props')->nullable();
             $table->timestamps();

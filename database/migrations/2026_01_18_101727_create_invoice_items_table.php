@@ -25,6 +25,8 @@ class CreateInvoiceItemsTable extends Migration
             $table->decimal('unit_price', 10, 2)->default(0);
             $table->decimal('discount_amount', 10, 2)->default(0);
             $table->decimal('amount', 10, 2);
+            $table->decimal('paid_amount', 10, 2)->default(0);
+            $table->decimal('due_amount', 10, 2)->virtual()->storedAs('amount - paid_amount');
             $table->enum('status', ['draft', 'unpaid', 'partially_paid', 'paid', 'overdue', 'cancelled'])->default('draft');
             $table->string('description')->nullable();
             $table->json('props')->nullable();
