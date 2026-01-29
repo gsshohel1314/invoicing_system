@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use Illuminate\Http\Request;
 use App\Models\CustomerLedger;
 use App\Models\PaymentInvoice;
+use App\Models\PaymentInvoiceItem;
 use Illuminate\Support\Facades\DB;
 
 class PaymentController extends Controller
@@ -67,88 +68,131 @@ class PaymentController extends Controller
     public function store(Request $request)
     {
         $validated = $request->validate([
-            'vts_account_id'   => 'required|exists:vts_accounts,id',
-            'amount'           => 'required|numeric|min:0.01',
-            'payment_date'     => 'required|date',
-            'method'           => 'required|in:cash,bkash,nagad,bank',
-            'reference'        => 'nullable|string',
-            'invoice_id'       => 'required|exists:invoices,id',
-            'allocated_amount' => 'nullable|array',
+            'vts_account_id'     => 'required|exists:vts_accounts,id',
+            'amount'             => 'required|numeric|min:0.01',
+            'payment_date'       => 'required|date',
+            'method'             => 'required|in:cash,bkash,nagad,bank',
+            'reference'          => 'nullable|string',
+            'invoice_id'         => 'nullable|exists:invoices,id', // nullable for advance payment
+            'allocated_amount'   => 'nullable|array',
             'allocated_amount.*' => 'numeric|min:0',
         ]);
 
-        DB::transaction(function () use ($validated, $request) {
-            // Payment record
-            $payment = Payment::create([
-                'vts_account_id' => $validated['vts_account_id'],
-                'invoice_id'     => $validated['invoice_id'],
-                'amount'         => $validated['amount'],
-                'payment_date'   => $validated['payment_date'],
-                'method'         => $validated['method'],
-                'reference'      => $validated['reference'],
-                'status'         => 'success',
-            ]);
+        try {
+            $payment = DB::transaction(function () use ($validated, $request) {
+                // Payment record
+                $payment = Payment::create([
+                    'vts_account_id' => $validated['vts_account_id'],
+                    'invoice_id'     => $validated['invoice_id'] ?? null,
+                    'amount'         => $validated['amount'],
+                    'payment_date'   => $validated['payment_date'],
+                    'method'         => $validated['method'],
+                    'reference'      => $validated['reference'],
+                    'status'         => 'success',
+                ]);
 
-            // Ledger entry (credit)
-            CustomerLedger::create([
-                'vts_account_id'   => $validated['vts_account_id'],
-                'transaction_date' => $validated['payment_date'],
-                'type'             => 'payment',
-                'reference_type'   => Payment::class,
-                'reference_id'     => $payment->id,
-                'debit'            => 0,
-                'credit'           => $validated['amount'],
-                'description'      => "Payment via {$validated['method']} - Ref: {$validated['reference']}",
-            ]);
+                // Ledger entry (credit)
+                CustomerLedger::create([
+                    'vts_account_id'   => $validated['vts_account_id'],
+                    'transaction_date' => $validated['payment_date'],
+                    'type'             => 'payment',
+                    'reference_type'   => Payment::class,
+                    'reference_id'     => $payment->id,
+                    'debit'            => 0,
+                    'credit'           => $validated['amount'],
+                    'description'      => "Payment via {$validated['method']} - Ref: {$validated['reference']}",
+                ]);
 
-            // Invoice level allocation
-            $invoice = Invoice::findOrFail($validated['invoice_id']);
+                $totalAllocated = 0;
 
-            PaymentInvoice::create([
-                'payment_id'       => $payment->id,
-                'invoice_id'       => $invoice->id,
-                'vts_account_id'   => $validated['vts_account_id'],
-                'allocated_amount' => $validated['amount'],
-                'total_amount'     => $invoice->total_amount,
-            ]);
+                if (!empty($validated['invoice_id'])) {
+                    $invoice = Invoice::findOrFail($validated['invoice_id']);
 
-            // Invoice paid_amount update + status recalculate
-            $invoice->paid_amount += $validated['amount'];
-            $invoice->status = ($invoice->total_amount - $invoice->paid_amount <= 0) ? 'paid' : 'partially_paid';
-            $invoice->save();
+                    // Invoice level allocation record
+                    $paymentInvoice = PaymentInvoice::create([
+                        'payment_id'       => $payment->id,
+                        'invoice_id'       => $invoice->id,
+                        'vts_account_id'   => $validated['vts_account_id'],
+                        'allocated_amount' => $validated['amount'],
+                        'total_amount'     => $invoice->total_amount,
+                    ]);
 
-            // Invoice item-wise allocation & status update
-            $allocated = $request->input('allocated_amount', []);
-            foreach ($allocated as $itemId => $allocatedAmount) {
-                if ($allocatedAmount > 0 && is_numeric($itemId)) {
-                    $item = InvoiceItem::find($itemId);
+                    // Invoice paid_amount & status update
+                    $invoice->paid_amount += $validated['amount'];
+                    $invoice->status = ($invoice->total_amount - $invoice->paid_amount <= 0) ? 'paid' : 'partially_paid';
+                    $invoice->save();
 
-                    if ($item && $item->invoice_id == $invoice->id) {
-                        $item->paid_amount += $allocatedAmount;
-                        $item->status = ($item->amount - $item->paid_amount <= 0) ? 'paid' : 'partially_paid';
-                        $item->save();
+                    // Item-wise allocation & PaymentInvoiceItem record
+                    $allocated = $request->input('allocated_amount', []);
+                    foreach ($allocated as $itemId => $allocatedAmount) {
+                        if ($allocatedAmount > 0 && is_numeric($itemId)) {
+                            $item = InvoiceItem::find($itemId);
+
+                            if ($item && $item->invoice_id == $invoice->id) {
+                                // Backend safety: don't allocated more than items due.
+                                $maxAllocatable = $item->due_amount;
+                                $allocatedAmount = min($allocatedAmount, $maxAllocatable);
+
+                                if ($allocatedAmount <= 0) continue;
+
+                                // Item paid_amount update
+                                $item->paid_amount += $allocatedAmount;
+                                $item->status = ($item->amount - $item->paid_amount <= 0) ? 'paid' : 'partially_paid';
+                                $item->save();
+
+                                // PaymentInvoiceItem record
+                                PaymentInvoiceItem::create([
+                                    'payment_id'         => $payment->id,
+                                    'invoice_id'         => $invoice->id,
+                                    'payment_invoice_id' => $paymentInvoice->id,
+                                    'invoice_item_id'    => $itemId,
+                                    'allocated_amount'   => $allocatedAmount,
+                                    'total_amount'       => $item->amount,
+                                ]);
+
+                                $totalAllocated += $allocatedAmount;
+                            }
+                        }
                     }
                 }
-            }
 
-            // যদি overpayment থাকে (যেমন 300 দিয়ে 280 due) — balance-এ যোগ করো
-            // ... (তোমার balance logic)
-            // $totalAllocated = array_sum($allocated);
-            // $overPayment = $validated['amount'] - $totalAllocated;
-            // if ($overPayment > 0) {
-            //     $account = $invoice->vtsAccount;
-            //     $account->billing->current_balance += $overPayment;
-            //     $account->billing->save();
+                // Overpayment handling (if allocated < paid amount)
+                $overPayment = $validated['amount'] - $totalAllocated;
+                if ($overPayment > 0) {
+                    $account = VtsAccount::findOrFail($validated['vts_account_id']);
+                    
+                    // Customer balance update (assuming billing relation)
+                    if ($account->billing) {
+                        $account->billing->current_balance += $overPayment;
+                        $account->billing->save();
+                    }
 
-            //     CustomerLedger::create([
-            //         'vts_account_id'   => $account->id,
-            //         'transaction_date' => now(),
-            //         'type'             => 'advance_payment',
-            //         'debit'            => 0,
-            //         'credit'           => $overPayment,
-            //         'description'      => "Advance from payment #{$payment->id}",
-            //     ]);
-            // }
-        });
+                    // Ledger entry for advance
+                    CustomerLedger::create([
+                        'vts_account_id'   => $validated['vts_account_id'],
+                        'transaction_date' => now(),
+                        'type'             => 'advance_payment',
+                        'debit'            => 0,
+                        'credit'           => $overPayment,
+                        'reference_type'   => Payment::class,
+                        'reference_id'     => $payment->id,
+                        'description'      => "Advance/Overpayment from payment #{$payment->id}",
+                    ]);
+                }
+
+                return $payment;
+            });
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Payment recorded successfully!',
+                'payment_id' => $payment->id,
+            ], 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Payment recording failed: ' . $e->getMessage(),
+            ], 422);
+        }
     }
 }

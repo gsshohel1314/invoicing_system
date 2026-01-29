@@ -17,7 +17,7 @@ class CreateCustomerLedgersTable extends Migration
             $table->id();
             $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete();
             $table->date('transaction_date');
-            $table->enum('type', ['invoice','payment','adjustment','discount']);
+            $table->enum('type', ['invoice','payment','adjustment','discount', 'advance_payment']);
             $table->string('reference_type');
             $table->unsignedBigInteger('reference_id');
             $table->decimal('debit', 10, 2)->default(0);
