@@ -16,7 +16,7 @@ use App\Http\Controllers\PaymentController;
 */
 
 Route::get('/', function () {
-    return view('welcome');
+    return redirect()->route('payments.create');
 });
 
 Route::get('/invoice/pdf/{invoice}', [InvoiceController::class, 'streamPdf'])->name('invoice.pdf')->middleware('signed.valid');
