@@ -8,6 +8,7 @@ use App\Models\VtsAccount;
 use App\Models\InvoiceItem;
 use App\Jobs\SendInvoiceEmail;
 use App\Models\CustomerLedger;
+use App\Models\Vts;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -149,23 +150,56 @@ class InvoiceService
                     'invoice_number' => $this->generateInvoiceNumber($invoice->id),
                 ]);
 
-                // Create invoice items
-                foreach ($invoiceItemsData as $itemData) {
-                    $itemData['invoice_id'] = $invoice->id;
-                    InvoiceItem::create($itemData);
+                // Customer level balance update & ledger
+                if ($account->billing) {
+                    $account->billing->current_balance -= $total;
+                    $account->billing->last_invoice_id = $invoice->id;
+                    $account->billing->save();
+
+                    // Ledger entry: debit for new due
+                    CustomerLedger::create([
+                        'vts_account_id'   => $account->id,
+                        'transaction_date' => $issuedDate,
+                        'type'             => 'invoice_due',
+                        'debit'            => $total,
+                        'credit'           => 0,
+                        'reference_type'   => Invoice::class,
+                        'reference_id'     => $invoice->id,
+                        'description'      => "Invoice #{$invoice->invoice_number} consolidated due for {$billingMonth} ({$total} ৳)",
+                    ]);
                 }
 
-                // Ledger entry
-                CustomerLedger::create([
-                    'vts_account_id'    => $account->id,
-                    'transaction_date'  => now(),
-                    'type'              => 'invoice',
-                    'debit'             => round($total, 2),
-                    'credit'            => 0,
-                    'reference_type'    => Invoice::class,
-                    'reference_id'      => $invoice->id,
-                    'description'       => "Consolidated invoice for {$billingMonth}",
-                ]);
+                // Create invoice items
+                $invoiceItemsData = array_map(function ($item) use ($invoice) {
+                    $item['invoice_id'] = $invoice->id;
+                    return $item;
+                }, $invoiceItemsData);
+
+                foreach ($invoiceItemsData as $itemData) {
+                    $invoiceItem = InvoiceItem::create($itemData);
+                    $vts = Vts::select(['id', 'service_status'])
+                        ->with(['billing:id,vts_id,current_balance'])
+                        ->find($invoiceItem->vts_id);
+
+                    // Device (Vts) level balance update & ledger
+                    if ($vts->billing) {
+                        $vts->billing->current_balance -= $invoiceItem->amount;
+                        $vts->billing->last_invoice_id = $invoiceItem->invoice_id;
+                        $vts->billing->save();
+
+                        CustomerLedger::create([
+                            'vts_account_id'   => $invoiceItem->vts_account_id,
+                            'vts_id'           => $vts->id,
+                            'transaction_date' => $issuedDate,
+                            'type'             => 'invoice_item_due',
+                            'debit'            => $invoiceItem->amount,
+                            'credit'           => 0,
+                            'reference_type'   => InvoiceItem::class,
+                            'reference_id'     => $invoiceItem->id,
+                            'description'      => "Invoice #{$invoice->invoice_number} device #{$vts->id} prorated due for {$billingMonth} ({$invoiceItem->amount} ৳)",
+                        ]);
+                    }
+                }
 
                 // PDF generator
                 if ($account->email) {
