@@ -37,8 +37,8 @@ class PaymentController extends Controller
     {
         $invoiceItems = InvoiceItem::where('invoice_id', $invoiceId)
             ->whereIn('status', ['unpaid', 'partially_paid'])
-            ->orderBy('due_amount', 'desc')
-            ->orderBy('id', 'asc')
+            // ->orderBy('due_amount', 'desc')
+            // ->orderBy('id', 'asc')
             ->get()
             ->map(function ($item) {
                 return [
@@ -81,6 +81,7 @@ class PaymentController extends Controller
             // Payment record
             $payment = Payment::create([
                 'vts_account_id' => $validated['vts_account_id'],
+                'invoice_id'     => $validated['invoice_id'],
                 'amount'         => $validated['amount'],
                 'payment_date'   => $validated['payment_date'],
                 'method'         => $validated['method'],
@@ -106,8 +107,9 @@ class PaymentController extends Controller
             PaymentInvoice::create([
                 'payment_id'       => $payment->id,
                 'invoice_id'       => $invoice->id,
-                'total_amount'     => $invoice->total_amount,
+                'vts_account_id'   => $validated['vts_account_id'],
                 'allocated_amount' => $validated['amount'],
+                'total_amount'     => $invoice->total_amount,
             ]);
 
             // Invoice paid_amount update + status recalculate

@@ -532,6 +532,7 @@
                 error: function(xhr) {
                     const errorMsg = xhr.responseJSON?.message || 'Something went wrong. Please try again.';
                     if (xhr.status === 419) errorMsg = 'CSRF token mismatch. Refresh page.';
+                    $message.removeClass('d-none').hide();
                     $message.addClass('alert-danger').show();
                     $messageText.text(errorMsg);
 

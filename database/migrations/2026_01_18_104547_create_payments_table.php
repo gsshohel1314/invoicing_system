@@ -16,6 +16,7 @@ class CreatePaymentsTable extends Migration
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('invoice_id')->nullable()->constrained()->cascadeOnDelete();
             $table->decimal('amount', 10, 2);
             $table->date('payment_date');
             $table->enum('method', ['bank','bkash','nagad','cash']);
@@ -24,6 +25,13 @@ class CreatePaymentsTable extends Migration
             $table->text('notes')->nullable();
             $table->json('props')->nullable();
             $table->timestamps();
+
+            // Indexes
+            $table->index('vts_account_id');
+            $table->index('invoice_id');
+            $table->index('payment_date');
+            $table->index(['status', 'payment_date']);
+            $table->index(['vts_account_id', 'payment_date']);
         });
     }
 
