@@ -16,10 +16,12 @@ class CreateCustomerLedgersTable extends Migration
         Schema::create('customer_ledgers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('vts_account_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('vts_id')->nullable()->constrained()->cascadeOnDelete();
             $table->date('transaction_date');
-            $table->enum('type', ['invoice','payment','adjustment','discount', 'advance_payment']);
-            $table->string('reference_type');
-            $table->unsignedBigInteger('reference_id');
+            // $table->enum('type', ['invoice','payment','adjustment','discount', 'advance_payment']);
+            $table->enum('type', ['invoice_due','invoice_item_due','payment','adjustment','discount', 'advance_payment']);
+            $table->string('reference_type')->nullable();
+            $table->unsignedBigInteger('reference_id')->nullable();
             $table->decimal('debit', 10, 2)->default(0);
             $table->decimal('credit', 10, 2)->default(0);
             $table->string('description')->nullable();
